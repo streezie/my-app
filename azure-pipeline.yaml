@@ -43,7 +43,7 @@ stages:
               kubernetesServiceConnection: 'k8s-staging-connection'
               namespace: staging
               manifests: |
-                my-app\K8s\deployment.yaml
+                K8s\deployment.yaml
               containers: |
                 $(imageRepository):$(tag)
 
@@ -63,6 +63,6 @@ stages:
               kubernetesServiceConnection: 'k8s-production-connection'
               namespace: production
               manifests: |
-                my-app\K8s\deployment.yaml
+                K8s\deployment.yaml
               containers: |
                 $(imageRepository):$(tag)
