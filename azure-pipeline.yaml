@@ -37,13 +37,22 @@ stages:
       runOnce:
         deploy:
           steps:
+          # Pulls the K8s folder from your GitHub repo into this deployment job
+          - checkout: self
+          # Debug Step for Staging
+          - script: |
+              echo "--- Current working directory ---"
+              pwd
+              echo "--- Contents of Build.SourcesDirectory ---"
+              ls -R $(Build.SourcesDirectory)
+            displayName: 'Find my files'
           - task: KubernetesManifest@1
             inputs:
               action: deploy
               kubernetesServiceConnection: 'k8s-staging-connection'
               namespace: staging
               manifests: |
-                K8s/deployment.yaml
+                $(Build.SourcesDirectory)/K8s/deployment.yaml
               containers: |
                 $(imageRepository):$(tag)
 
@@ -57,12 +66,21 @@ stages:
       runOnce:
         deploy:
           steps:
+          # Pulls the K8s folder from your GitHub repo into this deployment job
+          - checkout: self
+          # Debug Step for Production
+          - script: |
+              echo "--- Current working directory ---"
+              pwd
+              echo "--- Contents of Build.SourcesDirectory ---"
+              ls -R $(Build.SourcesDirectory)
+            displayName: 'Find my files'
           - task: KubernetesManifest@1
             inputs:
               action: deploy
               kubernetesServiceConnection: 'k8s-production-connection'
               namespace: production
               manifests: |
-                K8s/deployment.yaml
+                $(Build.SourcesDirectory)/K8s/deployment.yaml
               containers: |
                 $(imageRepository):$(tag)
