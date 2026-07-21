@@ -1,0 +1,589 @@
+Below is a complete beginner-to-production-style guide to build an application, push the Docker image to Docker Hub, and deploy it to a Kubernetes cluster using Azure DevOps CI/CD — with separate staging and production environments.
+
+I’ll keep it practical and easy to follow, while also applying production-level standards such as separate namespaces, secrets management, approvals, and safe deployments.
+
+### What you will build
+
+You will create this CI/CD flow:
+
+Git Repository
+
+Azure DevOps
+
+Build Docker Image
+
+Push to Docker Hub
+
+Deploy to Staging
+
+Deploy to Production
+
+### Prerequisites
+
+Before starting, make sure you have these accounts and tools:
+
+| Item               | Purpose                           |
+| ------------------ | --------------------------------- |
+| GitHub             | Store your application code       |
+| Docker Hub         | Store Docker images               |
+| Azure DevOps       | Run CI/CD pipelines               |
+| Kubernetes Cluster | Run your application              |
+| kubectl            | Manage Kubernetes                 |
+| Docker Desktop     | Build and test containers locally |
+
+For learning, you can use Minikube or Docker Desktop Kubernetes. For production, use AKS or another managed Kubernetes service.
+
+### Step 1: Create the application
+
+We’ll use a simple Node.js Express app as the example.
+
+### Create the project folder
+
+Bash
+
+```
+mkdir my-app
+cd my-app
+```
+
+### Initialize Node.js
+
+Bash
+
+```
+npm init -y
+npm install express
+```
+
+### Create app.js
+
+Create a file named `app.js`:
+
+JavaScript
+
+```
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('Hello from Kubernetes CI/CD Pipeline!');
+});
+
+app.listen(port, () => {
+  console.log(`App running on port ${port}`);
+});
+```
+
+### Update package.json
+
+Replace the scripts section with:
+
+JSON
+
+```
+"scripts": {
+  "start": "node app.js"
+}
+```
+
+### Step 2: Create the Dockerfile
+
+In the project root, create a file named `Dockerfile`:
+
+dockerfile
+
+```
+# Use official Node.js image
+FROM node:20-alpine
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install --only=production
+
+# Copy application source code
+COPY . .
+
+# Expose application port
+EXPOSE 3000
+
+# Run the application
+CMD ["npm", "start"]
+```
+
+### Create .dockerignore
+
+```
+node_modules
+npm-debug.log
+.git
+.gitignore
+```
+
+This keeps the image small and production-ready.
+
+### Step 3: Test locally with Docker
+
+### Build the image
+
+Bash
+
+```
+docker build -t my-app:v1 .
+```
+
+### Run the container
+
+Bash
+
+```
+docker run -p 3000:3000 my-app:v1
+```
+
+Open your browser and go to:
+
+```
+http://localhost:3000
+```
+
+You should see:
+
+```
+Hello from Kubernetes CI/CD Pipeline!
+```
+
+### Step 4: Push the image to Docker Hub
+
+### Create a Docker Hub repository
+
+Go to Docker Hub and create a repository named `my-app`.
+
+### Log in from your terminal
+
+Bash
+
+```
+docker login
+```
+
+Enter your Docker Hub username and password or access token.
+
+### Tag the image
+
+Replace `your-dockerhub-username` with your actual Docker Hub username.
+
+Bash
+
+```
+docker tag my-app:v1 your-dockerhub-username/my-app:v1
+```
+
+### Push the image
+
+Bash
+
+```
+docker push your-dockerhub-username/my-app:v1
+```
+
+Your image is now stored in Docker Hub.
+
+### Step 5: Create the Kubernetes cluster
+
+For learning, start with Minikube.
+
+### Start Minikube
+
+Bash
+
+```
+minikube start --driver=docker
+```
+
+### Verify the cluster
+
+Bash
+
+```
+kubectl get nodes
+```
+
+You should see one node in Ready state.
+
+### Step 6: Create Kubernetes namespaces
+
+Namespaces separate staging and production.
+
+Bash
+
+```
+kubectl create namespace staging
+kubectl create namespace production
+```
+
+Verify:
+
+Bash
+
+```
+kubectl get namespaces
+```
+
+### Step 7: Create Kubernetes manifests
+
+Create a folder named `k8s`.
+
+Bash
+
+```
+mkdir k8s
+```
+
+### Deployment manifest
+
+Create `k8s/deployment.yaml`:
+
+YAML
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app
+        image: your-dockerhub-username/my-app:latest
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+```
+
+### Service manifest
+
+Create `k8s/service.yaml`:
+
+YAML
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+spec:
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: LoadBalancer
+```
+
+### Step 8: Deploy manually to test
+
+### Deploy to staging
+
+Bash
+
+```
+kubectl apply -f k8s/deployment.yaml -n staging
+kubectl apply -f k8s/service.yaml -n staging
+```
+
+### Check pods
+
+Bash
+
+```
+kubectl get pods -n staging
+```
+
+### Get service URL
+
+Bash
+
+```
+minikube service my-app-service -n staging
+```
+
+If this works, your Kubernetes manifests are correct.
+
+### Step 9: Set up Azure DevOps
+
+### Create a project
+
+* Go to Azure DevOps .
+
+* Create a new organization if you do not have one.
+
+* Create a new project named `my-app-ci-cd`.
+
+### Connect your Git repository
+
+* Push your application code to GitHub.
+
+* In Azure DevOps, go to Pipelines → New Pipeline.
+
+* Select GitHub as the source.
+
+* Authorize Azure DevOps to access your GitHub repository.
+
+### Step 10: Create service connections
+
+### Docker Hub connection
+
+* Go to Project Settings → Service connections.
+
+* Click New service connection.
+
+* Select Docker Registry.
+
+* Choose Docker Hub.
+
+* Enter your Docker Hub credentials.
+
+* Name it `dockerhub-connection`.
+
+### Kubernetes connection
+
+* Create another service connection.
+
+* Select Kubernetes.
+
+* Choose your cluster type, such as AKS or generic Kubernetes.
+
+* Provide the kubeconfig or connect directly if using AKS.
+
+* Name it `k8s-connection`.
+
+### Step 11: Create the Azure DevOps pipeline
+
+Create a file named `azure-pipelines.yml` in the root of your repository.
+
+YAML
+
+```
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  dockerRegistryServiceConnection: 'dockerhub-connection'
+  kubernetesServiceConnection: 'k8s-connection'
+  imageRepository: 'your-dockerhub-username/my-app'
+  tag: '$(Build.BuildId)'
+
+stages:
+# Build Stage
+- stage: Build
+  displayName: Build and Push Docker Image
+  jobs:
+  - job: Build
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: Docker@2
+      displayName: Build and Push Image
+      inputs:
+        command: buildAndPush
+        repository: $(imageRepository)
+        dockerfile: Dockerfile
+        containerRegistry: $(dockerRegistryServiceConnection)
+        tags: |
+          $(tag)
+          latest
+
+# Deploy to Staging
+- stage: Deploy_Staging
+  displayName: Deploy to Staging
+  dependsOn: Build
+  jobs:
+  - deployment: DeployStaging
+    environment: 'staging'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: KubernetesManifest@1
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: staging
+              manifests: |
+                k8s/deployment.yaml
+                k8s/service.yaml
+              containers: |
+                $(imageRepository):$(tag)
+
+# Deploy to Production
+- stage: Deploy_Production
+  displayName: Deploy to Production
+  dependsOn: Deploy_Staging
+  jobs:
+  - deployment: DeployProduction
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: KubernetesManifest@1
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: production
+              manifests: |
+                k8s/deployment.yaml
+                k8s/service.yaml
+              containers: |
+                $(imageRepository):$(tag)
+```
+
+### Step 12: Configure environments and approvals
+
+This is a production standard practice.
+
+### Create environments
+
+* In Azure DevOps, go to Pipelines → Environments.
+
+* Create an environment named `staging`.
+
+* Create another environment named `production`.
+
+### Add approval for production
+
+* Open the `production` environment.
+
+* Go to Approvals and checks.
+
+* Add an approval.
+
+* Select yourself or another approver.
+
+Now, every deployment to production will require manual approval.
+
+### Step 13: Push code and run the pipeline
+
+### Commit your code
+
+Bash
+
+```
+git init
+git add .
+git commit -m "Initial commit"
+```
+
+### Push to GitHub
+
+Bash
+
+```
+git branch -M main
+git remote add origin https://github.com/your-username/my-app.git
+git push -u origin main
+```
+
+Azure DevOps will automatically trigger the pipeline.
+
+### Step 14: Verify the deployment
+
+### Check staging
+
+Bash
+
+```
+kubectl get pods -n staging
+kubectl get svc -n staging
+```
+
+### Check production
+
+Bash
+
+```
+kubectl get pods -n production
+kubectl get svc -n production
+```
+
+### Production-level standards you should follow
+
+| Standard                   | Why it matters                                        |
+| -------------------------- | ----------------------------------------------------- |
+| Separate namespaces        | Isolates staging and production                       |
+| Resource limits            | Prevents one app from consuming all cluster resources |
+| Liveness probes            | Restarts unhealthy containers                         |
+| Readiness probes           | Ensures traffic only goes to healthy pods             |
+| Image tagging              | Use unique build IDs instead of only latest           |
+| Secrets                    | Store passwords in Kubernetes Secrets, not in YAML    |
+| Manual production approval | Prevents accidental deployments                       |
+| Monitoring                 | Use Prometheus, Grafana, or Azure Monitor             |
+
+### Recommended project structure
+
+```
+my-app/
+│
+├── app.js
+├── package.json
+├── Dockerfile
+├── .dockerignore
+├── azure-pipelines.yml
+└── k8s/
+    ├── deployment.yaml
+    └── service.yaml
+```
+
+### What happens after everything is set up
+
+* You push code to the `main` branch.
+
+* Azure DevOps builds the Docker image.
+
+* The image is pushed to Docker Hub.
+
+* The app is deployed automatically to `staging`.
+
+* You test the staging environment.
+
+* You approve the deployment.
+
+* The app is deployed to `production`.
+
+This is a real-world CI/CD pipeline that follows many production best practices and is suitable for a junior-to-mid-level DevOps engineer to demonstrate in interviews or on a portfolio.
+
+The next best step is to create the GitHub repository and the Node.js app exactly as shown in Steps 1–3. Once you complete that, I can help you with Part 2: creating the Kubernetes cluster and configuring Azure DevOps service connections with screenshots and exact clicks for every Azure DevOps page.
