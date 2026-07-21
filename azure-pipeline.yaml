@@ -41,13 +41,6 @@ stages:
           steps:
           # Pulls the K8s folder from your GitHub repo into this deployment job
           - checkout: self
-          # Debug Step for Staging
-          - script: |
-              echo "--- Current working directory ---"
-              pwd
-              echo "--- Contents of Build.SourcesDirectory ---"
-              ls -R $(Build.SourcesDirectory)
-            displayName: 'Find my files'
           - task: KubernetesManifest@1
             inputs:
               action: deploy
@@ -72,13 +65,6 @@ stages:
           steps:
           # Pulls the K8s folder from your GitHub repo into this deployment job
           - checkout: self
-          # Debug Step for Production
-          - script: |
-              echo "--- Current working directory ---"
-              pwd
-              echo "--- Contents of Build.SourcesDirectory ---"
-              ls -R $(Build.SourcesDirectory)
-            displayName: 'Find my files'
           - task: KubernetesManifest@1
             inputs:
               action: deploy
