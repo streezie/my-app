@@ -7,7 +7,6 @@ variables:
   dockerRegistryServiceConnection: 'dockerhub-connection'
   imageRepository: 'streezie/my-app'
   tag: '$(Build.BuildId)'
-
 stages:
 - stage: Build
   displayName: Build and Push Docker Image
@@ -32,8 +31,6 @@ stages:
   dependsOn: Build
   jobs:
   - deployment: DeployStaging
-    pool:
-      name: 'Local-Minikube-Agent'
     environment: 'staging'
     strategy:
       runOnce:
@@ -56,8 +53,6 @@ stages:
   dependsOn: Deploy_Staging
   jobs:
   - deployment: DeployProduction
-    pool:
-      name: 'Local-Minikube-Agent'
     environment: 'production'
     strategy:
       runOnce:
