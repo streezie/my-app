@@ -14,7 +14,7 @@ stages:
   jobs:
   - job: Build
     pool:
-      name: 'Local-Minikube-Agent'
+      vmImage: 'ubuntu-latest'
     steps:
     - task: Docker@2
       displayName: Build and Push Image
@@ -32,6 +32,8 @@ stages:
   dependsOn: Build
   jobs:
   - deployment: DeployStaging
+    pool:
+      name: 'Local-Minikube-Agent'
     environment: 'staging'
     strategy:
       runOnce:
@@ -61,6 +63,8 @@ stages:
   dependsOn: Deploy_Staging
   jobs:
   - deployment: DeployProduction
+    pool:
+      name: 'Local-Minikube-Agent'
     environment: 'production'
     strategy:
       runOnce:
