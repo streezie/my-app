@@ -31,8 +31,6 @@ stages:
     dependsOn: Build
     jobs:
       - deployment: DeployStaging
-        pool:
-          name: 'Local-Minikube'
         environment: 'staging'
         strategy:
           runOnce:
@@ -59,8 +57,6 @@ stages:
     dependsOn: Deploy_Staging
     jobs:
       - deployment: DeployProduction
-        pool:
-          name: 'Local-Minikube'
         environment: 'production'
         strategy:
           runOnce:
